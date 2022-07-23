@@ -14,8 +14,8 @@ from torchvision import transforms,datasets
 train = datasets.MNIST('',train=True,download=True,transform=transforms.Compose([transforms.ToTensor()]))
 test = datasets.MNIST('',train=False,download=True,transform=transforms.Compose([transforms.ToTensor()]))
 
-trainset = torch.utils.data.DataLoader(train,batch_size=10,shuffle=True)
-testset = torch.utils.data.DataLoader(test,batch_size=10,shuffle=False)
+trainset = torch.utils.data.DataLoader(train,batch_size=128,shuffle=True)
+testset = torch.utils.data.DataLoader(test,batch_size=128,shuffle=False)
 
 import torch.nn as nn
 import torch.nn.functional as F
@@ -42,15 +42,36 @@ import torch.optim as optim
 loss_function = nn.CrossEntropyLoss()
 optimizer = optim.Adam(net.parameters(),lr=0.001)
 
-for epoch in range(3):
+loss_plot = []
+for epoch in range(8):
   for data in trainset:
     X,y = data
-    net.zero_grad()
     output = net(X.view(-1,784))
-    loss = F.nll_loss(output,y)
+    loss = loss_function(output,y)
+    loss_plot.append(loss.item())
+
+    optimizer.zero_grad()
     loss.backward()
     optimizer.step()
+    
   print(loss)
+
+with torch.no_grad():
+    n_correct = 0
+    n_samples = 0
+    for X, y in trainset:
+      X = X.reshape(-1, 28*28)
+      outputs = net(X)
+
+      _,predictions = torch.max(outputs, 1) #torch.max function will return the value and the index and we are interested in the actual index
+      n_samples += y.shape[0]
+      n_correct += (predictions == y).sum().item()
+  
+    acc = 100* n_correct / n_samples
+    print(f'Training accuracy = {acc:.4f}')
+
+from matplotlib import pyplot as plt
+plt.plot(loss_plot)
 
 correct = 0
 total = 0
@@ -63,4 +84,4 @@ with torch.no_grad():
       if torch.argmax(i) == y[idx]:
         correct += 1
       total += 1
-print("Accuracy: ", round(correct/total,3))
+print("Accuracy: ", round(correct/total,4))
